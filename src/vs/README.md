@@ -152,7 +152,7 @@ Editor features keep the developer in flow: information renders at the cursor, e
 | Component | Why it exists | Source |
 |-----------|---------------|--------|
 | Source Control view & SCM Graph | Provider-agnostic staging, committing, history graph | [`contrib/scm`](./workbench/contrib/scm) (`scmHistoryViewPane.ts` for the graph) |
-| Git integration | VCS as a built-in extension over the public SCM API | [`extensions/git`](../../extensions/git), [`extensions/git-base`](../../extensions/git-base), [`extensions/github`](../../extensions/github) |
+| Git integration | VCS as a built-in extension over the SCM extension API (including proposed APIs — see [built-in extensions](#built-in-extensions)) | [`extensions/git`](../../extensions/git), [`extensions/git-base`](../../extensions/git-base), [`extensions/github`](../../extensions/github) |
 | Diff editor & quick diff | Reviewing change is the core VCS task | [`editor/browser/widget/diffEditor`](./editor/browser/widget/diffEditor), gutter decorations in [`contrib/scm/browser/quickDiffDecorator.ts`](./workbench/contrib/scm/browser/quickDiffDecorator.ts) |
 | Merge editor | Structured 3-way conflict resolution | [`contrib/mergeEditor`](./workbench/contrib/mergeEditor); inline conflict CodeLens in [`extensions/merge-conflict`](../../extensions/merge-conflict) |
 | Multi-file diff | PR-style review of a whole changeset | [`contrib/multiDiffEditor`](./workbench/contrib/multiDiffEditor) |
