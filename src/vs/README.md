@@ -10,7 +10,10 @@ It complements, and links to, the canonical references:
 
 ## Layers
 
-Code in `src/vs` is organized in layers. Each layer may only depend on the layers below it — the rules are enforced by ESLint (`local/code-import-patterns` and `local/code-layering` in [`eslint.config.js`](../../eslint.config.js)); run `npm run valid-layers-check` to validate.
+Code in `src/vs` is organized in layers. Each layer may only depend on the layers below it. Two separate checks enforce this, so run both after changing a cross-layer import:
+
+- `npm run eslint` — the `local/code-import-patterns` and `local/code-layering` rules in [`eslint.config.js`](../../eslint.config.js), which are what actually police the layer and target-environment import tables below.
+- `npm run valid-layers-check` — [`build/checker/layersChecker.ts`](../../build/checker/layersChecker.ts) and `layersTypeCheck.ts`, which verify that each layer only uses the type definitions available in its runtime (no DOM types in `node` code, and so on).
 
 | Layer | Path | Purpose | May import from |
 |-------|------|---------|-----------------|
@@ -45,10 +48,17 @@ A feature that works in the web build must live in `common`/`browser`; anything 
 
 - [`browser/parts`](./workbench/browser/parts) — the window chrome, one folder per part: `titlebar`, `activitybar`, `sidebar`, `auxiliarybar`, `editor`, `panel`, `statusbar`, `notifications`, `banner`, `dialogs`, plus the shared composite-bar machinery. [`browser/layout.ts`](./workbench/browser/layout.ts) arranges them into the grid.
 - [`services/`](./workbench/services) — core workbench services not tied to one feature (text files, keybinding, themes, lifecycle, history, layout).
-- [`contrib/`](./workbench/contrib) — self-contained feature contributions, one folder per feature (~100 of them: `terminal`, `debug`, `search`, `scm`, `chat`, …). A contribution has a single `*.contribution.ts` entry point, exposes at most one common API file to other contribs, and no code outside `contrib/` may depend on it.
+- [`contrib/`](./workbench/contrib) — self-contained feature contributions, one folder per feature (~100 of them: `terminal`, `debug`, `search`, `scm`, `chat`, …). See [contribution boundaries](#contribution-boundaries) below for the conventions they follow.
 - [`api/`](./workbench/api) — the extension host: the implementation of `vscode.d.ts` (`extHost*.ts`) and the `mainThread*` counterparts.
 
 **Entry points are import lists.** [`workbench.common.main.ts`](./workbench/workbench.common.main.ts) imports every browser-safe contribution; [`workbench.desktop.main.ts`](./workbench/workbench.desktop.main.ts) adds Electron-only ones; [`workbench.web.main.ts`](./workbench/workbench.web.main.ts) is the web equivalent. Only code reachable from an entry point ships in a build.
+
+### Contribution boundaries
+
+[`source-code-organization.instructions.md`](../../.github/instructions/source-code-organization.instructions.md) states the conventions for `contrib/`: one `.contribution.ts` entry point per contribution, internal API exposed from a single common file, and no dependency from outside `contrib/` into `contrib/`. Follow them for new work, but expect the existing tree to be looser in two specific ways:
+
+- **Several entry points per contribution are normal.** A feature that spans target environments splits accordingly — `files` has `browser/files.contribution.ts`, `browser/fileActions.contribution.ts`, and an `electron-browser` counterpart — and a feature may separate service registration from UI, as `debug` does with `debug.contribution.ts` and `debug.service.contribution.ts`. What matters is that each entry point is imported from the matching `workbench.*.main.ts`.
+- **"Nothing outside `contrib/`" is a workbench-core rule, not a global one.** ESLint lets `src/vs/workbench/~` and `src/vs/workbench/services/*/~` reach into `contrib` only in tests, but `src/vs/workbench/api/~` may import contributions outright (the extension host needs their APIs), and the layers above the workbench may too — [`src/vs/server/node/remoteTerminalChannel.ts`](./server/node/remoteTerminalChannel.ts) imports terminal contribution types by design. Treat the rule as: workbench core and services must not depend on features; the extension host and the layers above may, through a contribution's common API.
 
 ### How a feature registers itself
 
@@ -191,7 +201,9 @@ The chat UI, agent runtime, tool framework, and MCP support are core platform co
 
 ## Built-in extensions
 
-[`extensions/`](../../extensions) holds first-party extensions that ship inside the product. Unlike `workbench/contrib` features (core code using internal APIs), these use only the public `vscode` API — Git, Emmet, Markdown, the language grammars, default themes, `merge-conflict`, `references-view`, `simple-browser`, and the language-features extensions for TypeScript/HTML/CSS/JSON. They prove the extension API and keep the core VCS- and language-agnostic. See [`extensions/CONTRIBUTING.md`](../../extensions/CONTRIBUTING.md).
+[`extensions/`](../../extensions) holds first-party extensions that ship inside the product: Git, Emmet, Markdown, the language grammars, default themes, `merge-conflict`, `references-view`, `simple-browser`, and the language-features extensions for TypeScript/HTML/CSS/JSON. The line between these and `workbench/contrib` is which API they are written against — contributions are core code using internal workbench APIs, while these run in the extension host against `vscode.d.ts`, which keeps the core VCS- and language-agnostic.
+
+Being built in does buy extra privileges, so do not read them as samples of what a marketplace extension can do. Many declare `enabledApiProposals` in their `package.json` and use APIs that are not part of the stable public surface — Git enables around 35 proposals (`scmHistoryProvider`, `quickDiffProvider`, `timeline`, …) and `markdown-language-features` a handful more. Others, such as Emmet, enable none and are ordinary extensions. See [`extensions/CONTRIBUTING.md`](../../extensions/CONTRIBUTING.md) and [`src/vscode-dts/README.md`](../vscode-dts/README.md) for how proposed APIs work.
 
 ## Finding your way
 
